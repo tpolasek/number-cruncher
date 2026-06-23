@@ -67,8 +67,7 @@
         this.ctx = null;
       }
     },
-    // Schedule a single square-wave tone starting at `start` seconds offset from now.
-    tone(freq, start, dur, gain) {
+    tone(freq, start, dur, gain, out) {
       if (!this.ctx) return;
       const t0 = this.ctx.currentTime + start;
       const osc = this.ctx.createOscillator();
@@ -79,12 +78,20 @@
       g.gain.linearRampToValueAtTime(gain, t0 + 0.005);
       g.gain.linearRampToValueAtTime(gain * 0.6, t0 + dur * 0.6);
       g.gain.linearRampToValueAtTime(0, t0 + dur);
-      osc.connect(g).connect(this.ctx.destination);
+      osc.connect(g).connect(out || this.ctx.destination);
       osc.start(t0);
       osc.stop(t0 + dur + 0.02);
     },
     play(name) {
       if (!this.ctx) return;
+      const dur = {move:50,eat:220,wrong:260,death:550,levelUp:470,gameOver:940,win:700};
+      if (dur[name] > 50) {
+        Bgm.gain.gain.setValueAtTime(0, this.ctx.currentTime);
+        clearTimeout(Bgm.resumeId);
+        Bgm.resumeId = setTimeout(() => {
+          Bgm.gain.gain.linearRampToValueAtTime(0.032, Sfx.ctx.currentTime + 0.2);
+        }, dur[name] + 100);
+      }
       switch (name) {
         case 'move':
           this.tone(330, 0, 0.05, 0.06);
@@ -125,6 +132,36 @@
           break;
       }
     },
+  };
+
+  const Bgm = {
+    notes: [523,587,659,784,880,784,659,523,440,523,587,659,784,1047,880,784,659,784,880,1047,880,784,659,587,523,440,523,659,784,659,587,523],
+    bass: [131,196,165,175,131,196,165,131,147,196,131,175,165,196,131,165],
+    i: 0, bi: 0, next: 0, id: null, resumeId: null, gain: null,
+    play() {
+      if (!Sfx.ctx) return;
+      this.stop();
+      this.gain = Sfx.ctx.createGain();
+      this.gain.gain.value = 0.032;
+      this.gain.connect(Sfx.ctx.destination);
+      this.i = this.bi = 0;
+      this.next = Sfx.ctx.currentTime;
+      this.step();
+      this.id = setInterval(() => this.step(), 100);
+    },
+    step() {
+      if (!Sfx.ctx) return;
+      const t = Sfx.ctx.currentTime;
+      if (t + 0.15 < this.next) return;
+      const f = this.notes[this.i % this.notes.length];
+      const d = 0.48;
+      Sfx.tone(f, this.next - t, d, 0.032, this.gain);
+      if (this.i % 2 === 0)
+        Sfx.tone(this.bass[this.bi++ % this.bass.length], this.next - t, d * 1.5, 0.016, this.gain);
+      this.next += d;
+      this.i++;
+    },
+    stop() { if (this.id) { clearInterval(this.id); this.id = null; } },
   };
 
   // ===== Utilities =====
@@ -232,6 +269,7 @@
     Sfx.init();
     state.troggleSpawnAt = performance.now() + TROGGLE_GRACE_MS;
     state.status = 'playing';
+    Bgm.play();
     hideOverlay();
   }
 
