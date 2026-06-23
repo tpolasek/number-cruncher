@@ -256,11 +256,11 @@
       if (state.remainingCorrect <= 0) levelComplete();
     } else {
       Sfx.play('wrong');
-      loseLife();
+      loseLife(false);
     }
   }
 
-  function loseLife() {
+  function loseLife(respawn = true) {
     state.lives -= 1;
     updateHUD();
     if (state.lives <= 0) {
@@ -268,10 +268,12 @@
       return;
     }
     Sfx.play('death');
-    state.player.col = 0;
-    state.player.row = 0;
     state.player.invulnUntil = performance.now() + INVULN_MS;
-    relocateTroggles();
+    if (respawn) {
+      state.player.col = 0;
+      state.player.row = 0;
+      relocateTroggles();
+    }
   }
 
   function levelComplete() {
