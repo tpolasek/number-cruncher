@@ -135,31 +135,39 @@
   };
 
   const Bgm = {
-    notes: [523,587,659,784,880,784,659,523,440,523,587,659,784,1047,880,784,659,784,880,1047,880,784,659,587,523,440,523,659,784,659,587,523],
-    bass: [131,196,165,175,131,196,165,131,147,196,131,175,165,196,131,165],
-    i: 0, bi: 0, next: 0, id: null, resumeId: null, gain: null,
+    mel: [494,.273,440,.273,392,.273,330,1.636,330,.273,370,.273,392,.273,440,.273,392,.273,370,.273,330,2.415,440,.273,392,.273,370,.273,294,1.636,294,.273,330,.273,370,.273,392,.273,370,.273,392,.273,440,2.182,988,.273,880,.273,784,.273,659,1.636,659,.273,740,.273,784,.273,880,.273,784,.273,740,.273,1319,2.415,880,.273,784,.273,740,.273,587,1.636,1175,.273,1319,.273,1480,.273,1568,.273,1480,.273,1568,.273,1760,2.182],
+    bass: [82,.136,82,.273,82,.273,82,.273,82,.273,82,.273,82,.273,82,.136,65,.136,73,.136,82,.136,65,.136,65,.273,65,.273,65,.273,65,.273,65,.273,65,.273,65,.273,62,.136,58,.136,73,.136,73,.273,73,.273,73,.273,73,.273,73,.273,73,.273,73,.273,69,.136,65,.136,62,.136,62,.273,62,.273,62,.273,62,.273,62,.273,62,.273,62,.273,62,.136],
+    mi: 0, bi: 0, nextMel: 0, nextBass: 0, id: null, resumeId: null, gain: null,
     play() {
       if (!Sfx.ctx) return;
       this.stop();
       this.gain = Sfx.ctx.createGain();
       this.gain.gain.value = 0.032;
       this.gain.connect(Sfx.ctx.destination);
-      this.i = this.bi = 0;
-      this.next = Sfx.ctx.currentTime;
+      this.mi = this.bi = 0;
+      const t = Sfx.ctx.currentTime + 0.05;
+      this.nextMel = t;
+      this.nextBass = t;
       this.step();
-      this.id = setInterval(() => this.step(), 100);
+      this.id = setInterval(() => this.step(), 50);
     },
     step() {
       if (!Sfx.ctx) return;
       const t = Sfx.ctx.currentTime;
-      if (t + 0.15 < this.next) return;
-      const f = this.notes[this.i % this.notes.length];
-      const d = 0.48;
-      Sfx.tone(f, this.next - t, d, 0.032, this.gain);
-      if (this.i % 2 === 0)
-        Sfx.tone(this.bass[this.bi++ % this.bass.length], this.next - t, d * 1.5, 0.016, this.gain);
-      this.next += d;
-      this.i++;
+      if (t + 0.12 >= this.nextMel) {
+        const f = this.mel[this.mi * 2];
+        const d = this.mel[this.mi * 2 + 1];
+        Sfx.tone(f, this.nextMel - t, d, 0.032, this.gain);
+        this.nextMel += d;
+        this.mi = (this.mi + 1) % (this.mel.length / 2);
+      }
+      if (t + 0.12 >= this.nextBass) {
+        const f = this.bass[this.bi * 2];
+        const d = this.bass[this.bi * 2 + 1];
+        Sfx.tone(f, this.nextBass - t, d, 0.025, this.gain);
+        this.nextBass += d;
+        this.bi = (this.bi + 1) % (this.bass.length / 2);
+      }
     },
     stop() { if (this.id) { clearInterval(this.id); this.id = null; } },
   };
