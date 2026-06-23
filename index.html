@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Number Cruncher</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="game-wrap">
+    <header id="hud">
+      <div id="prompt" class="hud-cell">Numbers that add (+) to <span id="target">5</span></div>
+      <div class="hud-row">
+        <div class="hud-cell">Score: <span id="score">0</span></div>
+        <div class="hud-cell">Lives: <span id="lives">3</span></div>
+        <div class="hud-cell">Level: <span id="level">1</span></div>
+      </div>
+      <div id="howto" class="hud-cell">
+        Arrows = move &nbsp; Space = munch &nbsp; P = pause &nbsp; R = restart
+      </div>
+    </header>
+
+    <div id="stage">
+      <canvas id="game" width="600" height="500"></canvas>
+
+      <div id="overlay" class="overlay visible">
+        <div class="overlay-box">
+          <h1>NUMBER CRUNCHER</h1>
+          <p id="overlay-msg">Press any key to start</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="game.js" defer></script>
+</body>
+</html>
