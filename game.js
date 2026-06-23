@@ -192,7 +192,7 @@
   function init() {
     state.status = 'idle';
     state.level = 1;
-    state.target = randInt(5, 7);
+    state.target = randInt(4, 6);
     state.score = 0;
     state.lives = START_LIVES;
     state.grid = generateLevel(state.target);
@@ -229,7 +229,7 @@
 
   function resetGame() {
     state.level = 1;
-    state.target = randInt(5, 7);
+    state.target = randInt(4, 6);
     state.score = 0;
     state.lives = START_LIVES;
     startLevel();
@@ -287,7 +287,7 @@
       return;
     }
     Sfx.play('levelUp');
-    const step = randInt(4, 6);
+    const step = randInt(1, 3);
     showOverlay(`LEVEL ${state.level} CLEAR`, `Next: Numbers that make ${state.target + step}`);
     setTimeout(() => {
       state.level += 1;
