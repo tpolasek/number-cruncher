@@ -74,6 +74,15 @@ body {
   margin-top: 4px;
 }
 
+#score, #level, #lives {
+  vertical-align: middle;
+}
+
+#lives {
+  font-size: 20px;
+  letter-spacing: 2px;
+}
+
 #stage {
   position: relative;
   line-height: 0;

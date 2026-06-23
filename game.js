@@ -467,32 +467,37 @@
   }
 
   function drawMuncher(x, y) {
-    // body
+    // Slug-style eyestalks: thin green stalks rising from the head with
+    // white eyeballs perched on top.
     ctx.fillStyle = COLORS.muncherBody;
-    ctx.fillRect(x + 14, y + 22, 72, 56);
-    ctx.fillRect(x + 24, y + 14, 52, 12); // top of head
-    // body shading
+    ctx.fillRect(x + 29, y + 12, 6, 14);  // left stalk
+    ctx.fillRect(x + 65, y + 12, 6, 14);  // right stalk
+    // Eyeballs (white) at the tip of each stalk
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(x + 23, y + 0, 18, 14);  // left eyeball
+    ctx.fillRect(x + 59, y + 0, 18, 14);  // right eyeball
+    // Pupils (black)
+    ctx.fillStyle = '#000';
+    ctx.fillRect(x + 29, y + 4, 6, 6);    // left pupil
+    ctx.fillRect(x + 65, y + 4, 6, 6);    // right pupil
+    // Head + body
+    ctx.fillStyle = COLORS.muncherBody;
+    ctx.fillRect(x + 24, y + 24, 52, 14); // top of head
+    ctx.fillRect(x + 14, y + 32, 72, 56); // body
+    // Body shading (bottom edge)
     ctx.fillStyle = COLORS.muncherDark;
-    ctx.fillRect(x + 14, y + 70, 72, 8);
-    // eyes (white sclera)
-    ctx.fillStyle = COLORS.teeth;
-    ctx.fillRect(x + 24, y + 30, 18, 14);
-    ctx.fillRect(x + 58, y + 30, 18, 14);
-    // pupils
+    ctx.fillRect(x + 14, y + 82, 72, 6);
+    // Open mouth (black interior)
     ctx.fillStyle = '#000';
-    ctx.fillRect(x + 32, y + 34, 6, 8);
-    ctx.fillRect(x + 64, y + 34, 6, 8);
-    // open mouth (black interior)
-    ctx.fillStyle = '#000';
-    ctx.fillRect(x + 20, y + 54, 60, 22);
-    // top teeth
-    ctx.fillStyle = COLORS.teeth;
+    ctx.fillRect(x + 20, y + 48, 60, 24);
+    // Top teeth
+    ctx.fillStyle = '#fff';
     for (let i = 0; i < 5; i++) {
-      ctx.fillRect(x + 26 + i * 10, y + 54, 6, 7);
+      ctx.fillRect(x + 26 + i * 10, y + 48, 6, 8);
     }
-    // bottom teeth
+    // Bottom teeth
     for (let i = 0; i < 5; i++) {
-      ctx.fillRect(x + 30 + i * 10, y + 69, 6, 7);
+      ctx.fillRect(x + 30 + i * 10, y + 64, 6, 8);
     }
   }
 
@@ -503,20 +508,16 @@
     // horns
     ctx.fillRect(x + 14, y + 14, 12, 16);
     ctx.fillRect(x + 74, y + 14, 12, 16);
-    // horn tips + brows (darker)
+    // horn tips (darker)
     ctx.fillStyle = COLORS.troggleDark;
     ctx.fillRect(x + 14, y + 14, 12, 5);
     ctx.fillRect(x + 74, y + 14, 12, 5);
-    ctx.fillRect(x + 22, y + 30, 22, 4); // left brow
-    ctx.fillRect(x + 56, y + 30, 22, 4); // right brow
-    // eyes (white)
+    // single large centered eye (white sclera)
     ctx.fillStyle = COLORS.teeth;
-    ctx.fillRect(x + 24, y + 36, 18, 10);
-    ctx.fillRect(x + 58, y + 36, 18, 10);
-    // pupils
+    ctx.fillRect(x + 30, y + 32, 40, 18);
+    // pupil (black)
     ctx.fillStyle = '#000';
-    ctx.fillRect(x + 30, y + 38, 6, 6);
-    ctx.fillRect(x + 64, y + 38, 6, 6);
+    ctx.fillRect(x + 44, y + 36, 12, 12);
     // jagged mouth
     ctx.fillStyle = '#000';
     ctx.fillRect(x + 20, y + 58, 60, 16);
@@ -534,7 +535,7 @@
   function updateHUD() {
     elTarget.textContent = state.target;
     elScore.textContent = state.score;
-    elLives.textContent = state.lives;
+    elLives.textContent = '💚'.repeat(state.lives);
     elLevel.textContent = state.level;
   }
 
