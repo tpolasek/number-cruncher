@@ -13,6 +13,7 @@
   const TROGGLE_GRACE_MS = 3000;
   const INVULN_MS = 1500;
   const LEVEL_TRANSITION_MS = 1800;
+  const CHOMP_MS = 220;
 
   const COLORS = {
     bg: '#000000',
@@ -46,7 +47,7 @@
     lives: START_LIVES,
     grid: [],
     remainingCorrect: 0,
-    player: { col: 0, row: 0, invulnUntil: 0 },
+    player: { col: 0, row: 0, invulnUntil: 0, chompStart: 0 },
     troggles: [],
     troggleSpawnAt: 0,
     pausedAt: 0,
@@ -219,7 +220,7 @@
     state.lives = START_LIVES;
     state.grid = generateLevel(state.target);
     state.remainingCorrect = countCorrect();
-    state.player = { col: 0, row: 0, invulnUntil: 0 };
+    state.player = { col: 0, row: 0, invulnUntil: 0, chompStart: 0 };
     state.troggles = [];
     state.troggleSpawnAt = 0;
     updateHUD();
@@ -268,6 +269,7 @@
   function munch() {
     const cell = cellAt(state.player.col, state.player.row);
     if (!cell || cell.empty) return;
+    state.player.chompStart = performance.now(); // trigger chomp animation
     if (evalCell(cell) === state.target) {
       cell.empty = true;
       state.score += POINTS_PER_CELL;
@@ -487,18 +489,17 @@
     // Body shading (bottom edge)
     ctx.fillStyle = COLORS.muncherDark;
     ctx.fillRect(x + 14, y + 82, 72, 6);
-    // Open mouth (black interior)
+    // Mouth (animated chomp). openness follows a triangle wave:
+    // 1 → 0 → 1 over CHOMP_MS, so the mouth snaps shut then reopens.
+    const elapsed = performance.now() - state.player.chompStart;
+    let openness = 1;
+    if (elapsed < CHOMP_MS) {
+      openness = Math.abs(1 - (elapsed / CHOMP_MS) * 2);
+    }
+    const mouthHeight = Math.max(3, Math.round(24 * openness));
+    const mouthTop = y + 60 - Math.floor(mouthHeight / 2);
     ctx.fillStyle = '#000';
-    ctx.fillRect(x + 20, y + 48, 60, 24);
-    // Top teeth
-    ctx.fillStyle = '#fff';
-    for (let i = 0; i < 5; i++) {
-      ctx.fillRect(x + 26 + i * 10, y + 48, 6, 8);
-    }
-    // Bottom teeth
-    for (let i = 0; i < 5; i++) {
-      ctx.fillRect(x + 30 + i * 10, y + 64, 6, 8);
-    }
+    ctx.fillRect(x + 20, mouthTop, 60, mouthHeight);
   }
 
   function drawTroggle(x, y) {
