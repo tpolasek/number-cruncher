@@ -3,14 +3,12 @@
 
   // ===== Constants =====
   const COLS = 6;
-  const ROWS = 5;
+  const ROWS = 4;
   const CELL = 100; // px (canvas is COLS*CELL x ROWS*CELL)
-  const START_TARGET = 5;
-  const TARGET_STEP = 5;
   const MAX_TARGET = 100;
   const START_LIVES = 3;
   const POINTS_PER_CELL = 10;
-  const TROGGLE_GRACE_MS = 3000;
+  const TROGGLE_GRACE_MS = 30000;
   const INVULN_MS = 1500;
   const LEVEL_TRANSITION_MS = 1800;
   const CHOMP_MS = 220;
@@ -42,7 +40,7 @@
   const state = {
     status: 'idle', // idle | playing | paused | levelComplete | gameOver | won
     level: 1,
-    target: START_TARGET,
+    target: 5,
     score: 0,
     lives: START_LIVES,
     grid: [],
@@ -95,6 +93,11 @@
       switch (name) {
         case 'move':
           this.tone(330, 0, 0.05, 0.06);
+          break;
+        case 'troggle':
+          this.tone(110, 0, 0.18, 0.14);
+          this.tone(92, 0.05, 0.20, 0.12);
+          this.tone(130, 0.15, 0.15, 0.10);
           break;
         case 'eat':
           this.tone(523, 0, 0.06, 0.10);
@@ -260,7 +263,7 @@
   function init() {
     state.status = 'idle';
     state.level = 1;
-    state.target = START_TARGET;
+    state.target = randInt(5, 7);
     state.score = 0;
     state.lives = START_LIVES;
     state.grid = generateLevel(state.target);
@@ -296,7 +299,7 @@
 
   function resetGame() {
     state.level = 1;
-    state.target = START_TARGET;
+    state.target = randInt(5, 7);
     state.score = 0;
     state.lives = START_LIVES;
     startLevel();
@@ -354,10 +357,11 @@
       return;
     }
     Sfx.play('levelUp');
-    showOverlay(`LEVEL ${state.level} CLEAR`, `Next: Numbers that make ${state.target + TARGET_STEP}`);
+    const step = randInt(4, 6);
+    showOverlay(`LEVEL ${state.level} CLEAR`, `Next: Numbers that make ${state.target + step}`);
     setTimeout(() => {
       state.level += 1;
-      state.target += TARGET_STEP;
+      state.target += step;
       startLevel();
     }, LEVEL_TRANSITION_MS);
   }
@@ -401,13 +405,16 @@
       row: r,
       nextMoveAt: performance.now() + troggleInterval(),
     });
+    Sfx.play('troggle');
   }
 
   function moveTroggle(t) {
-    const dirs = shuffle([[0, -1], [0, 1], [-1, 0], [1, 0]]);
-    for (const [dc, dr] of dirs) {
-      const nc = t.col + dc;
-      const nr = t.row + dr;
+    const dc = Math.sign(state.player.col - t.col);
+    const dr = Math.sign(state.player.row - t.row);
+    const dirs = shuffle([[0, -1], [0, 1], [-1, 0], [1, 0], [dc, 0], [dc, 0], [0, dr], [0, dr]]);
+    for (const [ddc, ddr] of dirs) {
+      const nc = t.col + ddc;
+      const nr = t.row + ddr;
       if (nc >= 0 && nc < COLS && nr >= 0 && nr < ROWS) {
         t.col = nc;
         t.row = nr;
