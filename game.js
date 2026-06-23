@@ -54,146 +54,71 @@
     pausedAt: 0,
   };
 
-  // ===== Audio (procedural square-wave synthesis) =====
-  const Sfx = {
-    ctx: null,
-    init() {
-      try {
-        if (!this.ctx) {
-          const AC = window.AudioContext || window.webkitAudioContext;
-          if (AC) this.ctx = new AC();
-        }
-        if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
-      } catch (e) {
-        this.ctx = null;
-      }
-    },
-    tone(freq, start, dur, gain, out) {
-      if (!this.ctx) return;
-      const t0 = this.ctx.currentTime + start;
-      const osc = this.ctx.createOscillator();
-      const g = this.ctx.createGain();
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(freq, t0);
-      g.gain.setValueAtTime(0, t0);
-      g.gain.linearRampToValueAtTime(gain, t0 + 0.005);
-      g.gain.linearRampToValueAtTime(gain * 0.6, t0 + dur * 0.6);
-      g.gain.linearRampToValueAtTime(0, t0 + dur);
-      osc.connect(g).connect(out || this.ctx.destination);
-      osc.start(t0);
-      osc.stop(t0 + dur + 0.02);
-    },
-    play(name) {
-      if (!this.ctx) return;
-      const dur = {move:50,eat:220,wrong:260,death:550,levelUp:470,gameOver:940,win:700};
-      if (dur[name] > 50) {
-        Bgm.gain.gain.setValueAtTime(0, this.ctx.currentTime);
-        clearTimeout(Bgm.resumeId);
-        Bgm.resumeId = setTimeout(() => {
-          Bgm.gain.gain.linearRampToValueAtTime(0.032, Sfx.ctx.currentTime + 0.2);
-        }, dur[name] + 100);
-      }
-      switch (name) {
-        case 'move':
-          this.tone(330, 0, 0.05, 0.06);
-          break;
-        case 'troggle':
-          this.tone(110, 0, 0.18, 0.14);
-          this.tone(92, 0.05, 0.20, 0.12);
-          this.tone(130, 0.15, 0.15, 0.10);
-          break;
-        case 'eat':
-          this.tone(523, 0, 0.06, 0.10);
-          this.tone(659, 0.06, 0.06, 0.10);
-          this.tone(784, 0.12, 0.10, 0.10);
-          break;
-        case 'wrong':
-          this.tone(140, 0, 0.22, 0.18);
-          this.tone(95, 0.02, 0.24, 0.12);
-          break;
-        case 'death':
-          this.tone(440, 0, 0.10, 0.16);
-          this.tone(330, 0.10, 0.10, 0.16);
-          this.tone(220, 0.20, 0.10, 0.16);
-          this.tone(110, 0.30, 0.25, 0.18);
-          break;
-        case 'levelUp':
-          this.tone(523, 0, 0.09, 0.12);
-          this.tone(659, 0.09, 0.09, 0.12);
-          this.tone(784, 0.18, 0.09, 0.12);
-          this.tone(1047, 0.27, 0.20, 0.14);
-          break;
-        case 'gameOver':
-          this.tone(440, 0, 0.18, 0.14);
-          this.tone(392, 0.18, 0.18, 0.14);
-          this.tone(330, 0.36, 0.18, 0.14);
-          this.tone(220, 0.54, 0.40, 0.16);
-          break;
-        case 'win':
-          this.tone(523, 0, 0.10, 0.14);
-          this.tone(659, 0.10, 0.10, 0.14);
-          this.tone(784, 0.20, 0.10, 0.14);
-          this.tone(1047, 0.30, 0.10, 0.14);
-          this.tone(1319, 0.40, 0.30, 0.16);
-          break;
-      }
-    },
-  };
-
-  const Bgm = {
+  // ===== Audio =====
+  // Engine.Synth owns the AudioContext + tone generator. bgm is a generic
+  // two-track looper from Engine.Sequencer, fed the game's melody/bass data.
+  // Sfx just maps game-specific sound names to Synth.tone calls and ducks
+  // the music during long sounds.
+  const bgm = new Engine.Sequencer({
+    synth: Engine.Synth,
     mel: [494,.273,440,.273,392,.273,330,1.636,330,.273,370,.273,392,.273,440,.273,392,.273,370,.273,330,2.415,440,.273,392,.273,370,.273,294,1.636,294,.273,330,.273,370,.273,392,.273,370,.273,392,.273,440,2.182,988,.273,880,.273,784,.273,659,1.636,659,.273,740,.273,784,.273,880,.273,784,.273,740,.273,1319,2.415,880,.273,784,.273,740,.273,587,1.636,1175,.273,1319,.273,1480,.273,1568,.273,1480,.273,1568,.273,1760,2.182],
     bass: [82,.136,82,.273,82,.273,82,.273,82,.273,82,.273,82,.273,82,.136,65,.136,73,.136,82,.136,65,.136,65,.273,65,.273,65,.273,65,.273,65,.273,65,.273,65,.273,62,.136,58,.136,73,.136,73,.273,73,.273,73,.273,73,.273,73,.273,73,.273,73,.273,69,.136,65,.136,62,.136,62,.273,62,.273,62,.273,62,.273,62,.273,62,.273,62,.273,62,.136],
-    mi: 0, bi: 0, nextMel: 0, nextBass: 0, id: null, resumeId: null, gain: null,
-    play() {
-      if (!Sfx.ctx) return;
-      this.stop();
-      this.gain = Sfx.ctx.createGain();
-      this.gain.gain.value = 0.032;
-      this.gain.connect(Sfx.ctx.destination);
-      this.mi = this.bi = 0;
-      const t = Sfx.ctx.currentTime + 0.05;
-      this.nextMel = t;
-      this.nextBass = t;
-      this.step();
-      this.id = setInterval(() => this.step(), 50);
-    },
-    step() {
-      if (!Sfx.ctx) return;
-      const t = Sfx.ctx.currentTime;
-      if (t + 0.12 >= this.nextMel) {
-        const f = this.mel[this.mi * 2];
-        const d = this.mel[this.mi * 2 + 1];
-        Sfx.tone(f, this.nextMel - t, d, 0.032, this.gain);
-        this.nextMel += d;
-        this.mi = (this.mi + 1) % (this.mel.length / 2);
+  });
+
+  const Sfx = {
+    play(name) {
+      if (!Engine.Synth.ctx) return;
+      const dur = {move:50,eat:220,wrong:260,death:550,levelUp:470,gameOver:940,win:700};
+      if (dur[name] > 50) bgm.duck(dur[name]);
+      switch (name) {
+        case 'move':
+          Engine.Synth.tone(330, 0, 0.05, 0.06);
+          break;
+        case 'troggle':
+          Engine.Synth.tone(110, 0, 0.18, 0.14);
+          Engine.Synth.tone(92, 0.05, 0.20, 0.12);
+          Engine.Synth.tone(130, 0.15, 0.15, 0.10);
+          break;
+        case 'eat':
+          Engine.Synth.tone(523, 0, 0.06, 0.10);
+          Engine.Synth.tone(659, 0.06, 0.06, 0.10);
+          Engine.Synth.tone(784, 0.12, 0.10, 0.10);
+          break;
+        case 'wrong':
+          Engine.Synth.tone(140, 0, 0.22, 0.18);
+          Engine.Synth.tone(95, 0.02, 0.24, 0.12);
+          break;
+        case 'death':
+          Engine.Synth.tone(440, 0, 0.10, 0.16);
+          Engine.Synth.tone(330, 0.10, 0.10, 0.16);
+          Engine.Synth.tone(220, 0.20, 0.10, 0.16);
+          Engine.Synth.tone(110, 0.30, 0.25, 0.18);
+          break;
+        case 'levelUp':
+          Engine.Synth.tone(523, 0, 0.09, 0.12);
+          Engine.Synth.tone(659, 0.09, 0.09, 0.12);
+          Engine.Synth.tone(784, 0.18, 0.09, 0.12);
+          Engine.Synth.tone(1047, 0.27, 0.20, 0.14);
+          break;
+        case 'gameOver':
+          Engine.Synth.tone(440, 0, 0.18, 0.14);
+          Engine.Synth.tone(392, 0.18, 0.18, 0.14);
+          Engine.Synth.tone(330, 0.36, 0.18, 0.14);
+          Engine.Synth.tone(220, 0.54, 0.40, 0.16);
+          break;
+        case 'win':
+          Engine.Synth.tone(523, 0, 0.10, 0.14);
+          Engine.Synth.tone(659, 0.10, 0.10, 0.14);
+          Engine.Synth.tone(784, 0.20, 0.10, 0.14);
+          Engine.Synth.tone(1047, 0.30, 0.10, 0.14);
+          Engine.Synth.tone(1319, 0.40, 0.30, 0.16);
+          break;
       }
-      if (t + 0.12 >= this.nextBass) {
-        const f = this.bass[this.bi * 2];
-        const d = this.bass[this.bi * 2 + 1];
-        Sfx.tone(f, this.nextBass - t, d, 0.025, this.gain);
-        this.nextBass += d;
-        this.bi = (this.bi + 1) % (this.bass.length / 2);
-      }
     },
-    stop() { if (this.id) { clearInterval(this.id); this.id = null; } },
   };
 
   // ===== Utilities =====
-  function randInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-  }
-  function clamp(v, lo, hi) {
-    return Math.max(lo, Math.min(hi, v));
-  }
-  function shuffle(arr) {
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      const tmp = arr[i];
-      arr[i] = arr[j];
-      arr[j] = tmp;
-    }
-    return arr;
-  }
+  const { randInt, clamp, shuffle } = Engine.Util;
 
   // ===== Level generation =====
   // Each cell: { a, b, op, empty } where op ∈ {'+', '-'}.
@@ -280,10 +205,10 @@
   }
 
   function startGame() {
-    Sfx.init();
+    Engine.Synth.init();
     state.troggleSpawnAt = performance.now() + TROGGLE_GRACE_MS;
     state.status = 'playing';
-    Bgm.play();
+    bgm.play();
     hideOverlay();
   }
 
@@ -649,58 +574,58 @@
   }
 
   // ===== Input =====
-  window.addEventListener('keydown', (e) => {
-    // Always unlock audio + start on first key from idle.
-    if (state.status === 'idle') {
-      e.preventDefault();
-      startGame();
-      return;
-    }
-    if (state.status === 'gameOver' || state.status === 'won') {
-      if (e.key === 'r' || e.key === 'R') {
-        e.preventDefault();
-        resetGame();
-      }
-      return;
-    }
-    if (e.key === 'p' || e.key === 'P') {
-      e.preventDefault();
+  // Bindings return true to consume (auto-preventDefault + stop dispatch),
+  // false to fall through. Each handler re-checks state so the original
+  // control flow (early returns, state-dependent preventDefault) is preserved.
+  Engine.Keyboard
+    .on(['ArrowUp', 'w', 'W'], () => {
+      if (state.status !== 'playing') return false;
+      movePlayer(0, -1);
+      return true;
+    })
+    .on(['ArrowDown', 's', 'S'], () => {
+      if (state.status !== 'playing') return false;
+      movePlayer(0, 1);
+      return true;
+    })
+    .on(['ArrowLeft', 'a', 'A'], () => {
+      if (state.status !== 'playing') return false;
+      movePlayer(-1, 0);
+      return true;
+    })
+    .on(['ArrowRight', 'd', 'D'], () => {
+      if (state.status !== 'playing') return false;
+      movePlayer(1, 0);
+      return true;
+    })
+    .on(' ', () => {
+      if (state.status !== 'playing') return false;
+      munch();
+      return true;
+    })
+    .on(['p', 'P'], () => {
+      // Original checked P after the idle/gameOver/won early returns, so
+      // skip in those states to let the fallback (start) or the restart
+      // binding handle the key.
+      if (state.status === 'idle' || state.status === 'gameOver' || state.status === 'won') return false;
       togglePause();
-      return;
-    }
-    if (state.status !== 'playing') return;
-
-    switch (e.key) {
-      case 'ArrowUp':
-      case 'w':
-      case 'W':
-        e.preventDefault();
-        movePlayer(0, -1);
-        break;
-      case 'ArrowDown':
-      case 's':
-      case 'S':
-        e.preventDefault();
-        movePlayer(0, 1);
-        break;
-      case 'ArrowLeft':
-      case 'a':
-      case 'A':
-        e.preventDefault();
-        movePlayer(-1, 0);
-        break;
-      case 'ArrowRight':
-      case 'd':
-      case 'D':
-        e.preventDefault();
-        movePlayer(1, 0);
-        break;
-      case ' ':
-        e.preventDefault();
-        munch();
-        break;
-    }
-  });
+      return true;
+    })
+    .on(['r', 'R'], () => {
+      if (state.status !== 'gameOver' && state.status !== 'won') return false;
+      resetGame();
+      return true;
+    })
+    .fallback(() => {
+      // "Press any key to start" — fires for unbound keys, or for bound keys
+      // whose handler returned false (e.g. movement keys pressed from idle).
+      if (state.status === 'idle') {
+        startGame();
+        return true;
+      }
+      return false;
+    })
+    .install();
 
   // ===== Loop =====
   function loop(now) {
