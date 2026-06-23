@@ -12,6 +12,8 @@
   const INVULN_MS = 1500;
   const LEVEL_TRANSITION_MS = 1800;
   const CHOMP_MS = 220;
+  const EAT_ANIM_MS = 1000;
+  const POST_EAT_GRACE_MS = 5000;
 
   const COLORS = {
     bg: '#000000',
@@ -38,7 +40,7 @@
 
   // ===== State =====
   const state = {
-    status: 'idle', // idle | playing | paused | levelComplete | gameOver | won
+    status: 'idle', // idle | playing | paused | eaten | levelComplete | gameOver | won
     level: 1,
     target: 5,
     score: 0,
@@ -48,6 +50,7 @@
     player: { col: 0, row: 0, invulnUntil: 0, chompStart: 0 },
     troggles: [],
     troggleSpawnAt: 0,
+    eating: null, // { troggle, start } while the muncher is being eaten
     pausedAt: 0,
   };
 
@@ -292,6 +295,7 @@
     state.player.invulnUntil = 0;
     state.troggles = [];
     state.troggleSpawnAt = performance.now() + TROGGLE_GRACE_MS;
+    state.eating = null;
     state.status = 'playing';
     hideOverlay();
     updateHUD();
@@ -439,13 +443,43 @@
   }
 
   function checkTroggleHit() {
+    if (state.eating) return;
     if (performance.now() < state.player.invulnUntil) return;
     for (const t of state.troggles) {
       if (t.col === state.player.col && t.row === state.player.row) {
-        loseLife();
+        startEaten(t);
         return;
       }
     }
+  }
+
+  // Troggle catches the muncher: hide the muncher, play a chomp animation on
+  // the troggle, then respawn once the animation finishes. Movement is blocked
+  // because state.status becomes 'eaten' for the duration.
+  function startEaten(troggle) {
+    state.eating = { troggle, start: performance.now() };
+    state.status = 'eaten';
+    state.lives -= 1;
+    updateHUD();
+    Sfx.play('death');
+  }
+
+  function updateEaten(now) {
+    if (!state.eating) return;
+    if (now - state.eating.start < EAT_ANIM_MS) return;
+    const t = state.eating.troggle;
+    const idx = state.troggles.indexOf(t);
+    if (idx >= 0) state.troggles.splice(idx, 1);
+    state.eating = null;
+    if (state.lives <= 0) {
+      gameOver();
+      return;
+    }
+    state.player.col = 0;
+    state.player.row = 0;
+    state.player.invulnUntil = now + INVULN_MS;
+    state.troggleSpawnAt = now + POST_EAT_GRACE_MS;
+    state.status = 'playing';
   }
 
   function updateTroggles(now) {
@@ -509,14 +543,14 @@
 
     // troggles
     for (const t of state.troggles) {
-      drawTroggle(t.col * CELL, t.row * CELL);
+      drawTroggle(t.col * CELL, t.row * CELL, state.eating && state.eating.troggle === t);
     }
 
-    // player (blink during invulnerability)
+    // player (blink during invulnerability, hidden while being eaten)
     const now = performance.now();
     const invuln = now < state.player.invulnUntil;
     const blink = invuln && Math.floor(now / 100) % 2 === 0;
-    if (!blink) {
+    if (!blink && !state.eating) {
       drawMuncher(state.player.col * CELL, state.player.row * CELL);
     }
   }
@@ -555,7 +589,7 @@
     ctx.fillRect(x + 20, mouthTop, 60, mouthHeight);
   }
 
-  function drawTroggle(x, y) {
+  function drawTroggle(x, y, eating) {
     // body
     ctx.fillStyle = COLORS.troggleBody;
     ctx.fillRect(x + 14, y + 26, 72, 52);
@@ -572,16 +606,27 @@
     // pupil (black)
     ctx.fillStyle = '#000';
     ctx.fillRect(x + 44, y + 36, 12, 12);
-    // jagged mouth
+    // Mouth. When eating, openness follows a triangle wave (1 → 0 → 1)
+    // over EAT_ANIM_MS so the mouth snaps shut like the muncher's chomp.
+    // Mouth is centered at y+66 and collapses vertically as openness → 0.
+    let openness = 1;
+    if (eating && state.eating) {
+      const elapsed = performance.now() - state.eating.start;
+      const progress = Math.min(1, elapsed / EAT_ANIM_MS);
+      openness = Math.abs(1 - progress * 2);
+    }
+    const mouthH = Math.max(2, Math.round(16 * openness));
+    const mouthTop = y + 66 - Math.floor(mouthH / 2);
     ctx.fillStyle = '#000';
-    ctx.fillRect(x + 20, y + 58, 60, 16);
-    // teeth (alternating up/down)
+    ctx.fillRect(x + 20, mouthTop, 60, mouthH);
+    // teeth (alternating up/down) — height clamped so they fit the mouth
     ctx.fillStyle = COLORS.teeth;
+    const teethH = Math.min(6, mouthH);
     for (let i = 0; i < 6; i++) {
-      ctx.fillRect(x + 22 + i * 10, y + 58, 5, 6);
+      ctx.fillRect(x + 22 + i * 10, mouthTop, 5, teethH);
     }
     for (let i = 0; i < 5; i++) {
-      ctx.fillRect(x + 27 + i * 10, y + 68, 5, 6);
+      ctx.fillRect(x + 27 + i * 10, mouthTop + mouthH - teethH, 5, teethH);
     }
   }
 
@@ -661,6 +706,8 @@
   function loop(now) {
     if (state.status === 'playing') {
       updateTroggles(now);
+    } else if (state.status === 'eaten') {
+      updateEaten(now);
     }
     draw();
     requestAnimationFrame(loop);
