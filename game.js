@@ -144,21 +144,42 @@
   }
 
   // ===== Level generation =====
-  // Each cell: { a, b, empty }. isCorrect = !empty && a + b === target.
+  // Each cell: { a, b, op, empty } where op ∈ {'+', '-'}.
+  // Operands are kept proportional to target so e.g. target=5 shows "9 - 4"
+  // (max ~2X) rather than "95 - 90".
   function makeCell(target, wantCorrect) {
-    if (wantCorrect) {
-      const a = randInt(0, target);
-      const b = target - a;
-      return { a, b, empty: false };
+    const op = Math.random() < 0.5 ? '+' : '-';
+    if (op === '+') {
+      if (wantCorrect) {
+        const a = randInt(0, target);
+        const b = target - a;
+        return { a, b, op, empty: false };
+      }
+      let a, b, guard = 0;
+      do {
+        a = randInt(0, target);
+        b = randInt(0, target);
+        guard++;
+      } while (a + b === target && guard < 50);
+      return { a, b, op, empty: false };
     }
-    // distractor: operands in [0, target] but never sum to target
+    // subtraction: a - b. b in [0, target], a in [b, 2*target] => result in [0, 2*target].
+    if (wantCorrect) {
+      const b = randInt(0, target);
+      const a = target + b; // a in [target, 2*target]
+      return { a, b, op, empty: false };
+    }
     let a, b, guard = 0;
     do {
-      a = randInt(0, target);
       b = randInt(0, target);
+      a = randInt(b, 2 * target);
       guard++;
-    } while (a + b === target && guard < 50);
-    return { a, b, empty: false };
+    } while (a - b === target && guard < 50);
+    return { a, b, op, empty: false };
+  }
+
+  function evalCell(cell) {
+    return cell.op === '-' ? cell.a - cell.b : cell.a + cell.b;
   }
 
   function generateLevel(target) {
@@ -180,7 +201,7 @@
   function countCorrect() {
     let n = 0;
     for (const c of state.grid) {
-      if (!c.empty && c.a + c.b === state.target) n++;
+      if (!c.empty && evalCell(c) === state.target) n++;
     }
     return n;
   }
@@ -247,7 +268,7 @@
   function munch() {
     const cell = cellAt(state.player.col, state.player.row);
     if (!cell || cell.empty) return;
-    if (cell.a + cell.b === state.target) {
+    if (evalCell(cell) === state.target) {
       cell.empty = true;
       state.score += POINTS_PER_CELL;
       state.remainingCorrect -= 1;
@@ -285,7 +306,7 @@
       return;
     }
     Sfx.play('levelUp');
-    showOverlay(`LEVEL ${state.level} CLEAR`, `Next: Numbers that add to ${state.target + TARGET_STEP}`);
+    showOverlay(`LEVEL ${state.level} CLEAR`, `Next: Numbers that make ${state.target + TARGET_STEP}`);
     setTimeout(() => {
       state.level += 1;
       state.target += TARGET_STEP;
@@ -420,7 +441,7 @@
       for (let c = 0; c < COLS; c++) {
         const cell = cellAt(c, r);
         if (!cell || cell.empty) continue;
-        const text = `${cell.a} + ${cell.b}`;
+        const text = `${cell.a} ${cell.op} ${cell.b}`;
         let size = 30;
         ctx.font = `${size}px "Courier New", ui-monospace, monospace`;
         while (ctx.measureText(text).width > CELL - 14 && size > 14) {
